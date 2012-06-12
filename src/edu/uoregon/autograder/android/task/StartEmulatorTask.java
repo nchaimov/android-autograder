@@ -5,6 +5,11 @@ import edu.uoregon.autograder.model.GraderTask;
 import edu.uoregon.autograder.util.ShellAccess;
 import edu.uoregon.autograder.util.ShellOutputError;
 
+/**
+ * @author Kurt Mueller
+ *
+ * This Task implementation starts the Android emulator.
+ */
 public class StartEmulatorTask extends GraderTask{
 	
 	public static final String TASK_NAME = "StartEmulatorTask";

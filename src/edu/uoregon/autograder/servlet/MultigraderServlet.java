@@ -11,6 +11,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.logging.Logger;
 
+import javax.servlet.ServletConfig;
 import javax.servlet.ServletException;
 import javax.servlet.ServletOutputStream;
 import javax.servlet.http.HttpServlet;
@@ -21,8 +22,8 @@ import org.apache.commons.fileupload.FileItem;
 import org.apache.commons.fileupload.disk.DiskFileItemFactory;
 import org.apache.commons.fileupload.servlet.ServletFileUpload;
 
-import edu.uoregon.autograder.android.task.AddLinesToAndroidManifestTask;
-import edu.uoregon.autograder.android.task.InstallAPKInEmulatorTask;
+import edu.uoregon.autograder.android.task.PreprocessAppAndTesterAPKsTask;
+import edu.uoregon.autograder.android.task.InstallAPKsInEmulatorTask;
 import edu.uoregon.autograder.android.task.RunRobotiumTask;
 import edu.uoregon.autograder.android.task.PingEmulatorTask;
 import edu.uoregon.autograder.android.task.StartEmulatorTask;
@@ -33,14 +34,30 @@ import edu.uoregon.autograder.model.GraderTask;
 import edu.uoregon.autograder.util.GraderRunner;
 
 /**
- * @author kurteous
+ * @author Kurt Mueller
  *
+ * This servlet processes multiple grading requests from a web page. That means the web page (in this case, index2.jsp) 
+ * allows the user to upload multiple App Inventor .apk files at a time, and choose from a list of Robotium test .apk files
+ * already stored on the server. This gives the server the ability to test different assignments, because it has multiple
+ * Robotium test APKs onboard and the user can choose which one to run against her uploaded App Inventor APKs.
+ * 
+ * This is intended to be used by an instructor or teaching assistant to upload all submitted APKs for an assignment from the
+ * students at once, and have them all be graded in sequence.
+ * 
+ * Form input, including the user's App Inventor files, is processed and used to make Grader objects. These are handed to the
+ * GraderRunner, which maintains a queue of Graders to run. The user's browser is immediately redirected to a status page
+ * for the GraderRunner, so they can track its progress and see the result of grading. The status page is currently generated
+ * directly by the GraderRunner and Grader's toConciseHTML() method, though this is not intended to be a long-term solution.
+ * 
+ * The list of Robotium APKs on the server is created by this servlet's init method, and used by index2.jsp to show the installed
+ * APKs in a pulldown. You can access the web form for submitting new Grader jobs at two URLs:
+ * 
+ * http://localhost:8080/autograder/index2.jsp
+ * http://localhost:8080/autograder/multigraderservlet
+ * 
  */
 public class MultigraderServlet extends HttpServlet {
 
-	/**
-	 * 
-	 */
 	private static final long serialVersionUID = -1857693746633762176L;
 	
 	private static final Logger log = Logger.getLogger(MultigraderServlet.class.getName());
@@ -53,10 +70,36 @@ public class MultigraderServlet extends HttpServlet {
 		runnerThread.start();
 	}
 	
+	/* (non-Javadoc)
+	 * @see javax.servlet.GenericServlet#init(javax.servlet.ServletConfig)
+	 * 
+	 * set the list of installed Robotium APKs for use by index.jsp in the form pulldown.
+	 * The servlet is loaded at startup time (see web.xml load-on-startup tag), so this 
+	 * is performed and ready even if the user goes directly to index.jsp without hitting
+	 * the servlet first.
+	 */
+	public void init(ServletConfig config)throws ServletException {
+	    super.init(config);
+
+	    String path = getServletConfig().getInitParameter("ROBOTIUM_DIR"); 
+
+	    File folder = new File(path);
+	    File[] listOfFiles = folder.listFiles(); 
+
+	    config.getServletContext().setAttribute("robotium_files", listOfFiles);
+
+	  }
+	
+	/* (non-Javadoc)
+	 * @see javax.servlet.http.HttpServlet#doGet(javax.servlet.http.HttpServletRequest, javax.servlet.http.HttpServletResponse)
+	 * 
+	 * Serves regular get requests; if there is a "results" parameter, returns the GraderRunner's HTML output.
+	 * If not, forwards to the form submission index2.jsp.
+	 */
 	public void doGet(HttpServletRequest request, HttpServletResponse response) 
 			throws ServletException, IOException {
 		log.info("servlet doGet!");
-		//doPost(request, response);
+
 		if (request.getParameter("results") != null) {
 			ServletOutputStream os = response.getOutputStream();
 			if (runner != null) {
@@ -65,29 +108,17 @@ public class MultigraderServlet extends HttpServlet {
 				// didn't find a grader
 				os.print("<html><body>No grader found</body></html>");
 			}
-		} else {
-			// get list of Robotium tester files
-			 // Directory path here
-			  String path = getServletConfig().getInitParameter("ROBOTIUM_DIR"); 
-			 
-			  File folder = new File(path);
-			  File[] listOfFiles = folder.listFiles(); 
-			  
-			  request.setAttribute("robotium_files", listOfFiles);
-			  /*for (int i = 0; i < listOfFiles.length; i++) 
-			  {
-			 
-			   if (listOfFiles[i].isFile()) 
-			   {
-			   files = listOfFiles[i].getName();
-			   System.out.println(files);
-			      }
-			  }*/
-			
+		} else {			
 			request.getRequestDispatcher("/index2.jsp").forward(request, response);
 		}
 	}
 	
+	/* (non-Javadoc)
+	 * @see javax.servlet.http.HttpServlet#doPost(javax.servlet.http.HttpServletRequest, javax.servlet.http.HttpServletResponse)
+	 * 
+	 * Processes form submissions to create Grader objects with uploaded form field and file data, and adds the Grader
+	 * objects to the GraderRunner queue.
+	 */
 	public void doPost(HttpServletRequest request, HttpServletResponse response) 
 			throws ServletException, IOException {
 		log.info("servlet doPost");
@@ -110,21 +141,19 @@ public class MultigraderServlet extends HttpServlet {
 		// save the uploaded APKs and create all Graders, adding them to graders and starting GraderRunner
 		parseServletRequestAndWriteToTempDir(request, response, servletInitParams.get("TMP_DIR_PATH"));
 		
-		//ServletOutputStream os = response.getOutputStream();
-		//os.print("\nInput data:\n");
-		//os.print(grader.getInput().toString());	
-		
-		//os.print("Checking for running emulator...");
-		
-
-		
 		// redirect browser to status page
 		response.sendRedirect("/autograder/multigraderservlet?results=show");
 		response.flushBuffer();
-
 	}
 	
-	
+	/**
+	 * Creates a unique graderId, verifying uniqueness by checking for an existing
+	 * grader tmp dir in tmpDir with the new id. Chances of a collision are vanishingly
+	 * small, but best to check anyway.
+	 * 
+	 * @param tmpDir the main temp directory in which to create individual Grader temp directories
+	 * @return the new Grader id
+	 */
 	private String generateGraderIdAndMakeGraderTmpDir(String tmpDir) {
 		// make a randomized temp dir
 		SecureRandom random = new SecureRandom();
@@ -150,11 +179,12 @@ public class MultigraderServlet extends HttpServlet {
 	
 	/**
 	 * Takes the multipart file input and parses form fields as well as the uploaded files. Writes the files
-	 * out to the temp dirs and adds the form fields and the file name and saved path info to the GraderInput passed in.
+	 * out to the temp dirs. There is much duplication between this method and AutograderServlet's doPost method; could
+	 * be extracted to a separate class.
 	 * 
 	 * @param request
 	 * @param response
-	 * @param tmpDir
+	 * @param tmpDir the main temp directory
 	 * @throws ServletException
 	 */
 	private void parseServletRequestAndWriteToTempDir(HttpServletRequest request, HttpServletResponse response, String tmpDir) 
@@ -209,22 +239,30 @@ public class MultigraderServlet extends HttpServlet {
 				grader.getInput().addFile(file.getName(), fileName);
 				
 				// create all tasks
-				GraderTask processAPKsTask = new AddLinesToAndroidManifestTask(grader);
+				GraderTask processAPKsTask = new PreprocessAppAndTesterAPKsTask(grader);
 				grader.addTask(processAPKsTask);
+				
 				GraderTask pingEmuTask = new PingEmulatorTask(grader);
 				grader.addTask(pingEmuTask);
+				
 				GraderTask startEmuTask = new StartEmulatorTask(grader);
 				grader.addTask(startEmuTask);
+				
 				GraderTask waitForEmuTask = new WaitForEmulatorTask(grader);
 				grader.addTask(waitForEmuTask);
+				
 				GraderTask uninstallAPKTaskPre = new UninstallAPKFromEmulatorTask(grader);
 				grader.addTask(uninstallAPKTaskPre);
-				GraderTask installAPKTask = new InstallAPKInEmulatorTask(grader);
+				
+				GraderTask installAPKTask = new InstallAPKsInEmulatorTask(grader);
 				grader.addTask(installAPKTask);
+				
 				//GraderTask launchAppTask = new LaunchInEmulatorTask(grader);
 				//grader.addTask(launchAppTask);
+				
 				GraderTask launchRobotiumTask = new RunRobotiumTask(grader);
 				grader.addTask(launchRobotiumTask);
+				
 				GraderTask uninstallAPKTaskPost = new UninstallAPKFromEmulatorTask(grader);
 				grader.addTask(uninstallAPKTaskPost);
 				

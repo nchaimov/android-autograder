@@ -5,23 +5,56 @@ import java.util.List;
 
 import edu.uoregon.autograder.model.Grader;
 
+/**
+ * @author Kurt Mueller
+ *
+ * This class manages a queue of Graders, executing them sequentially in a separate thread from the servlet so that
+ * the servlet can continue to process new grading requests and serve status pages for queued or finished requests.
+ * 
+ * A GraderRunner is created statically by a servlet, so there should be only one GraderRunner per running servlet.
+ * This is based on a model in which the hosting platform only runs a single Android emulator at a time, so all
+ * grading requests have to be processed sequentially, not in parallel. If you are able to run multiple emulators at once,
+ * then you would want multiple GraderRunners, or perhaps a single GraderRunner that can execute Graders on the different
+ * emulators, pulling from an emulator pool. For now, we just use a single emulator because it's a CPU-intensive beast.
+ */
+/**
+ * @author Kurt Mueller
+ *
+ */
 public class GraderRunner extends Thread {
 	
+	/**
+	 * Graders that are waiting to be run
+	 */
 	private static List<Grader> graderQueue = new ArrayList<Grader>();
+	
+	/**
+	 * Graders that have already been run. We keep them around so that we can access their status pages.
+	 */
 	private static List<Grader> oldGraders = new ArrayList<Grader>();
 	
+	/**
+	 * The Grader that is currently being tested. While being tested, it is not in graderQueue or in oldGraders, just here.
+	 */
 	private Grader runningGrader;
 	
-	/*public GraderRunner() {
-		run();
-	}*/
-	
+	/**
+	 * Reset the GraderRunner queues between batch submissions, for instance by the MultigraderServlet. Otherwise it will
+	 * keep adding jobs to the existing queues if you submit the same form page multiple times.
+	 */
 	public void reset() {
 		graderQueue = new ArrayList<Grader>();
 		oldGraders = new ArrayList<Grader>();
 		runningGrader = null;
 	}
 	
+	
+	/**
+	 * Generates a complete HTML page with a single row (or two rows in the case of completed Graders) for each Grader in the queues,
+	 * including the currently running Grader. Calls each Grader's toConciseHTMLTableRow() method to get details for each Grader.
+	 * 
+	 * @return the HTML String for the status page
+	 */
 	public String getConciseHtml() {
 		StringBuffer buff = new StringBuffer();
 		buff.append("<html><head>");
@@ -38,6 +71,11 @@ public class GraderRunner extends Thread {
 		return buff.toString();
 	}
 	
+	
+	/**
+	 * @return the number of Graders in the queue, waiting to be processed. Could be used to estimate
+	 * waiting time on the form submission page.
+	 */
 	public synchronized int currentQueueSize() {
 		return graderQueue.size();
 	}
@@ -66,9 +104,17 @@ public class GraderRunner extends Thread {
 		}
 	}
 
+	
+	/* (non-Javadoc)
+	 * @see java.lang.Thread#run()
+	 * 
+	 * the run loop for the GraderRunner thread, which looks in the graderQueue every 10 seconds for a new Grader 
+	 * to run. When a new Grader is found, it pulls the Grader from the queue, runs it, moves it to the oldGraders queue,
+	 * and then checks the graderQueue for more Graders.
+	 */
 	public void run() {
 		while (true) {
-			if (graderQueue.isEmpty()) {
+			if (graderQueue.size() == 0) {
 				try {
 					Thread.sleep(1000 * 10);
 				} catch (InterruptedException e) {
@@ -77,13 +123,17 @@ public class GraderRunner extends Thread {
 				} // 10 seconds
 			} else {
 				System.out.println("found a new grader to run");
-				runningGrader = graderQueue.remove(0);
-				runningGrader.status = Grader.Status.IN_PROGRESS;
-				runningGrader.doTasks();
-				System.out.println("finished running grader");
-				runningGrader.status = Grader.Status.COMPLETED;
-				oldGraders.add(runningGrader);
-				runningGrader = null;
+				if (graderQueue.size() > 0) {
+					runningGrader = graderQueue.remove(0);
+					runningGrader.status = Grader.Status.IN_PROGRESS;
+					runningGrader.doTasks();
+					System.out.println("finished running grader");
+					runningGrader.status = Grader.Status.COMPLETED;
+					oldGraders.add(runningGrader);
+					runningGrader = null;
+				} else {
+					System.out.println("Nearly tried to access element 0 of 0-size array!");
+				}
 			}
 		}
 	}

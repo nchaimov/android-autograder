@@ -5,6 +5,13 @@ import edu.uoregon.autograder.model.GraderTask;
 import edu.uoregon.autograder.util.ShellAccess;
 import edu.uoregon.autograder.util.ShellOutputError;
 
+/**
+ * @author Kurt Mueller
+ * 
+ * This Task implementation launches an application in the emulator. See
+ * the inline comments for the equivalent adb command that this runs given
+ * inputs for an action and class.
+ */
 public class LaunchInEmulatorTask extends GraderTask {
 	
 	public static final String TASK_NAME = "LaunchAppInEmulatorTask";
@@ -38,7 +45,6 @@ public class LaunchInEmulatorTask extends GraderTask {
 		String classParam = getInput().getString(CLASS_PARAM_NAME);
 		command = getInput().getString(ADB_INIT_PARAM_NAME) + " shell am start -a " + actionParam + " -n " + classParam;
 		result = ShellAccess.execCommandBlocking(command);
-		//getOutput().setOutputAndError(getTaskName(), result);
 		log("Launch app", result);
 		logFinished();
 	}

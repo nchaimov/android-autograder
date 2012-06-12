@@ -5,6 +5,23 @@ import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
+/**
+ * @author Kurt Mueller
+ *
+ * This class holds lists of input strings and input files for use by a Grader and its GraderTasks.
+ * Input strings are set by the init parameters of the servlet (in web.xml) as well as by form fields
+ * on the web page used to submit a new Grader job or jobs. Input file entries are created by the 
+ * servlet when it processes multi-part form data file uploads. Robotium tester files stored on the
+ * server are also added to the files list, as they form part of the input data.
+ * 
+ * These are Maps from Strings to Strings in both cases. An example of a string pair is
+ * 
+ * TMP_DIR : /tmp
+ * 
+ * An example of a file pair is
+ * 
+ * RobotiumTest.apk : /tmp/robotium/RobotiumTest.apk
+ */
 public class GraderData {
 
 	protected Map<String, String> strings;
@@ -40,13 +57,20 @@ public class GraderData {
 		return files;
 	}
 	
+	/**
+	 * @return a String representing the path to the first file in the input files list, if such a file exists.
+	 */
 	public String getFirstFilePath() {
 		if (getFiles() != null && getFiles().keySet() != null && !getFiles().keySet().isEmpty())
 			return getFiles().get(getFiles().keySet().iterator().next());
 		else return null;
 	}
 	
-	// return an array of file paths for input files ending in suffix (like .apk)
+	/**
+	 * @param suffix the filename suffix to search for in the input files
+	 * 
+	 * @return an array of file paths for input files ending in a particular suffix (like .apk)
+	 */
 	public ArrayList<String> getFilePathsByFileSuffix(String suffix) {
 		ArrayList<String> result = new ArrayList<String>();
 		if (files != null && !files.isEmpty()) {
@@ -59,6 +83,11 @@ public class GraderData {
 		}
 		return result;
 	}
+	
+	
+	/**
+	 * @return the name of the first file in the input files list, if there is a file
+	 */
 	public String getFirstFileName() {
 		if (getFiles() != null && getFiles().keySet() != null && !getFiles().keySet().isEmpty())
 			return getFiles().keySet().iterator().next();

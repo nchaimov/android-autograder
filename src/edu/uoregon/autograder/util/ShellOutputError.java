@@ -1,5 +1,10 @@
 package edu.uoregon.autograder.util;
 
+/**
+ * @author Kurt Mueller
+ *
+ * A simple class to hold the results (stdout and stderr) of executing a shell command.
+ */
 public class ShellOutputError {
 
 	private String output;

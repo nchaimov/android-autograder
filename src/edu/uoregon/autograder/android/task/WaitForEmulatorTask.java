@@ -5,6 +5,14 @@ import edu.uoregon.autograder.model.GraderTask;
 import edu.uoregon.autograder.util.ShellAccess;
 import edu.uoregon.autograder.util.ShellOutputError;
 
+/**
+ * @author Kurt Mueller
+ *
+ * This Task implementation blocks until the Android emulator is available. It is
+ * used to pause the workflow as the emulator is being started, if the
+ * PingEmulatorTask does not detect an available emulator and the StartEmulatorTask
+ * is executed to start the emulator.
+ */
 public class WaitForEmulatorTask extends GraderTask {
 
 	public static final String TASK_NAME = "WaitForEmulatorTask";

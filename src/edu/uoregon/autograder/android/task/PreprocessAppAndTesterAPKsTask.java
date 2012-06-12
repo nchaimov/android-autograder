@@ -25,7 +25,16 @@ import edu.uoregon.autograder.model.GraderTask;
 import edu.uoregon.autograder.util.ShellAccess;
 import edu.uoregon.autograder.util.ShellOutputError;
 
-public class AddLinesToAndroidManifestTask extends GraderTask{
+/**
+ * @author Nick Tiller
+ * @author Kurt Mueller
+ * 
+ * This Task implementation is responsible for processing an App Inventor APK (the tested file)
+ * and a Robotium APK file (the tester/testing file) that tests the App Inventor APK. Both APKs are
+ * expanded and decoded with apktool, and both AndroidManifest.xml files are manipulated
+ * to allow Robotium testing to work.
+ */
+public class PreprocessAppAndTesterAPKsTask extends GraderTask{
 	
 	public static final String APKTOOL_INIT_PARAM_NAME = "APKTOOL_PATH";	
 	public static final String TASK_NAME = "PreprocessAppAndTesterAPKsTask";
@@ -40,7 +49,7 @@ public class AddLinesToAndroidManifestTask extends GraderTask{
 	
 	public static final String DIR_EXTENSION = ".tmp";	// RobotiumTest.apk will be exploded into RobotiumTest.apk.tmp dir
 	
-	public AddLinesToAndroidManifestTask(Grader grader) {
+	public PreprocessAppAndTesterAPKsTask(Grader grader) {
 		super(TASK_NAME, grader);
 	}
 	
@@ -63,7 +72,6 @@ public class AddLinesToAndroidManifestTask extends GraderTask{
 					testedFileFullPath + " " + testedDir;
 	
 			ShellOutputError result = ShellAccess.execCommandBlocking(command);
-			//getOutput().setOutputAndError(getTaskName(), result);
 			log("Decoding app APK", result);
 			
 			/*
@@ -82,7 +90,6 @@ public class AddLinesToAndroidManifestTask extends GraderTask{
 				command = getInput().getString(APKTOOL_INIT_PARAM_NAME) + APKTOOL_BUILD_COMMAND + 
 						testedDir + " " + testedFileFullPath;
 				result = ShellAccess.execCommandBlocking(command);
-				//getOutput().setOutputAndError(getTaskName(), result);
 				log("Rebuilding app APK", result);
 				
 				signAPK(testedFileFullPath);
@@ -92,7 +99,6 @@ public class AddLinesToAndroidManifestTask extends GraderTask{
 						testerSourceFile + " " + testerDir;
 		
 				result = ShellAccess.execCommandBlocking(command);
-				//getOutput().setOutputAndError(getTaskName(), result);
 				log("Decoding testing APK", result);
 				
 				String robotiumPackageName = addLineToTestingManifest(testerDir + "/AndroidManifest.xml", packageName);
@@ -104,7 +110,6 @@ public class AddLinesToAndroidManifestTask extends GraderTask{
 						testerDir + " " + testerOutputFile;
 
 				result = ShellAccess.execCommandBlocking(command);
-				//getOutput().setOutputAndError(getTaskName(), result);
 				log("Rebuilding testing APK", result);
 				
 				signAPK(testerOutputFile);
@@ -131,25 +136,33 @@ public class AddLinesToAndroidManifestTask extends GraderTask{
 				e.printStackTrace();
 			}
 
-			//getOutput().addOutputString(getTaskName(), "Updated AndroidManifest.xml");
 			logFinished();
 			
 		} else {
-			//getOutput().addErrorString(getTaskName(), NO_APK_ERROR);
 			logError("Error locating app APK; ensure that paths in web.xml are correct");
 		}
 		
 	}
 	
+	/**
+	 * @param apkFile
+	 */
 	private void signAPK(String apkFile) { 
 		String command = "jarsigner -keypass android -storepass android -keystore " + 
 				getInput().getString(KEYSTORE_PATH) + " " + apkFile + " androiddebugkey";
 		
 		ShellOutputError result = ShellAccess.execCommandBlocking(command);
-		//getOutput().setOutputAndError(getTaskName(), result);
 		log("Signing app APK", result);
 	}
 
+	/**
+	 * @param dirName
+	 * @return
+	 * @throws ParserConfigurationException
+	 * @throws SAXException
+	 * @throws IOException
+	 * @throws TransformerException
+	 */
 	private String addLineToTestedManifest(String dirName) 
 			throws ParserConfigurationException, SAXException, 
 			IOException, TransformerException  {
@@ -180,6 +193,15 @@ public class AddLinesToAndroidManifestTask extends GraderTask{
 		
 	}
 
+	/**
+	 * @param dirName
+	 * @param packageName
+	 * @return
+	 * @throws ParserConfigurationException
+	 * @throws SAXException
+	 * @throws IOException
+	 * @throws TransformerException
+	 */
 	private String addLineToTestingManifest(String dirName, String packageName) 
 			throws ParserConfigurationException, SAXException, 
 			IOException, TransformerException  {

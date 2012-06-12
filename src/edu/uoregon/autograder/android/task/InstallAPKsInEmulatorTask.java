@@ -7,7 +7,14 @@ import edu.uoregon.autograder.model.GraderTask;
 import edu.uoregon.autograder.util.ShellAccess;
 import edu.uoregon.autograder.util.ShellOutputError;
 
-public class InstallAPKInEmulatorTask extends GraderTask{
+/**
+ * @author Kurt Mueller
+ * 
+ * This Task implementation installs the App Inventor (tested) and the Robotium (tester/testing)
+ * APKs in the Android emulator. More precisely, it installs all files ending in ".apk" in the
+ * list of input files.
+ */
+public class InstallAPKsInEmulatorTask extends GraderTask{
 	
 	public static final String ADB_INIT_PARAM_NAME = "ADB_PATH";	
 	public static final String TASK_NAME = "InstallAPKsInEmulatorTask";
@@ -18,7 +25,7 @@ public class InstallAPKInEmulatorTask extends GraderTask{
 	
 	public static final String NO_APK_ERROR = "Must upload an APK file!";
 	
-	public InstallAPKInEmulatorTask(Grader grader) {
+	public InstallAPKsInEmulatorTask(Grader grader) {
 		super(TASK_NAME, grader);
 	}
 

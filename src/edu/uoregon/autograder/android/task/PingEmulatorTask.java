@@ -5,6 +5,12 @@ import edu.uoregon.autograder.model.GraderTask;
 import edu.uoregon.autograder.util.ShellAccess;
 import edu.uoregon.autograder.util.ShellOutputError;
 
+/**
+ * @author Kurt Mueller
+ *
+ * This Task implementation executes a shell command to determine if the Android emulator is 
+ * currently running. It sets a next task based on the outcome of the task.
+ */
 public class PingEmulatorTask extends GraderTask {
 
 	public static final String TASK_NAME = "PingEmulatorTask";
