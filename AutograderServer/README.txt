@@ -30,7 +30,7 @@ Prerequisites
 -------------
 
 1. The Android platform tools must be installed on the server and available at
-the command prompt. These tools include "android", "adb", and "apktool".
+the command prompt. These tools include "emulator", "adb", and "apktool".
 
 2. An Android Virtual Device (AVD) must be setup on the server, using the "android"
 executable. The AVD should be configured to use an appropriate Android OS version.
